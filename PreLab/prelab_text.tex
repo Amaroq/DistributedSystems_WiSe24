@@ -1,0 +1,106 @@
+% DOCUMENT CLASS %
+\documentclass[a4paper, 11pt]{article}   % for A4 Paper, 11pt fontsize and article spacing
+
+% PACKAGES%
+\usepackage{amsfonts}   % For a basic mathfont (many will be replaced by stix)
+\usepackage{amsmath}    % For basic math symbols
+\usepackage{bbm}        % For \mathbbm (better version of \mathbb)
+\usepackage{mathrsfs}   % For \mathscr
+\usepackage{hyperref}   % For footnotes
+\usepackage{csquotes}   % For \textquote{}
+\usepackage{IEEEtrantools}  % For better alignments
+\usepackage{stix}   % For better mathfont
+\usepackage{tikz}   % For a macro
+\usepackage{listings} % For pasted code
+\usepackage{paralist}
+
+% SETS %
+\newcommand*{\R}{\mathbbm R}    % Set of real numbers
+\newcommand*{\N}{\mathbbm N}    % Set of natural numbers (beginning at 0)
+\newcommand*{\Z}{\mathbbm Z}    % Set of integers
+\newcommand*{\Q}{\mathbbm Q}    % Set of rational numbers
+\newcommand*{\pro}{\mathcal P}  % Power set of a set
+\newcommand*{\Co}{\mathcal C^1}     % Set of R^n -> R^d functions that are fully partially differenciable and continuous
+\newcommand*{\Ct}{\mathcal C^2}     % Set of R^n -> R functions that are C^1 functions and whose gradient is C^1 function
+
+% OPERATIONS ON FUNCTIONS %
+\newcommand*{\ddx}{\frac{\text d}{\text dx}}    % Derivative of a function
+\newcommand*{\grad}{\text{grad}}    % Gradient of a function
+\newcommand*{\J}{\textbf{J}}        % Jacobi-matrix of a function
+\newcommand*{\He}{\textbf{H}}       % Hesse-matrix of a function
+\newcommand*{\LMAX}{\text{\scshape Lmax}}   % Set of maxima of a function
+\newcommand*{\LMIN}{\text{\scshape Lmin}}   % Set of minima of a function
+\newcommand*{\img}{\text{img}}      % Image of a function
+\newcommand*{\dom}{\text{dom}}      % Domain of a function
+
+% DISTRIBUTIONS %
+\newcommand*{\Unif}{\text{Unif}}    % Uniform distribution (discrete or continous)
+\newcommand*{\Ber}{\text{Ber}}  % Bernoulli distribution
+\newcommand*{\Bin}{\text{Bin}}  % Binomial distribution
+\newcommand*{\Exp}{\text{Exp}}  % Exponential distribution
+\newcommand*{\Geo}{\text{Geo}}  % Geometric distribution
+\newcommand*{\Pois}{\text{Pois}}    % Poisson distribution
+\newcommand*{\Norm}{\mathcal{N}}    % Normal distribution
+\newcommand*{\D}{\mathcal{D}}   % Some random distribution
+
+% BASIC PROBABILISTIC STUFF %
+\newcommand*{\E}{\mathcal E}    % Some space of events
+\newcommand*{\Pro}{\mathbbm P}  % Probability function of an event
+\newcommand*{\Od}{\text{Od}}    % Odds of an event
+
+% OPERATIONS ON DISTRIBUTIONS OR RANDOM VALUES %
+\newcommand*{\supp}{\text{supp}}    % Support of a random variable
+\newcommand*{\Ew}{\mathbbm E}   % Expected value
+\newcommand*{\Var}{\text{Var}}  % Variance
+\newcommand*{\Cov}{\text{Cov}}  % Covariance of two random variables
+\newcommand*{\B}{\mathbbm B}    % Bias of a point estimation
+
+% MACROS %
+\newcommand{\subsubsubsection}[2]{\textsc{\underbar{#1}} \\#2\\\\}  % Macro for title in ALLCAPS, ends with two newlines
+\newcommand*{\todo}{\textit{\dots TODO \dots}}  % Macro for ... todo ...
+\newcommand*{\QDp}{{:}\text{ }} % Macro for ": " so that when writing something like "\forall x:" there is not a seperation between the '\forall' and the ':'
+\newcommand*{\puffer}{\text{ }\text{ }\text{ }\text{ }} % Macro for a lazy aligment 1
+\newcommand*{\gedanke}{\textbf{-- }}    % Macro for a long minus followed by text
+\newcommand*{\smi}{\text{-}}        % Macro for a small minus ('-')
+\newcommand*{\gap}{\text{ }}    % Macro for a lazy aligment 2
+\newcommand*{\vor}{\textbf{Vor.:} \gap} % Vor.
+\newcommand*{\beh}{\textbf{Beh.:} \gap} % Beh.
+\newcommand*{\bew}{\textbf{Bew.:} \gap} % Bew.
+\newcommand*{\qed}{\null\nobreak\hfill\ensuremath{\square}} % Macro for a QED-Box
+
+\begin{document}
+
+\subsubsection*{Which file determines how to build a Docker image?}
+Respective dockerfiles.
+\subsubsection*{What is the difference between a Docker image and a container?}
+A docker image determines what the service is, what languages and services 
+it is running and so on. The container is the actual environment the service or 
+application will be running in, virtualizing the environment on the local mahine.
+Why do you need to set the port when running the containers?
+So that docker knows through which ports to connect to the service from outside 
+the container itself (as our web browser for example does not run in the 
+docker container and thus needs to have a metaphorical "door" it can enter through).
+The same principle applies to services that are running in multiple docker containers, 
+as is the case here. Both containers, frontend and server, are separate from each other, 
+and the specified ports facilitate the ability to communicate with each other.
+
+\subsubsection*{What did you need to change in order to start a second server?}
+We had to change the \verb|SERVER_LIST| value defined in the frontend dockerfile to 
+include the second server started at \verb|127.0.0:8002:80|. After saving the changes we 
+then had to rebuilt the image and restart the containers to display both connected servers 
+in the frontend.
+
+\subsubsection*{Why do changes in the code are not directly reflected in the application?}
+For each change in the code the docker image has to be rebuilt before restarting 
+the container. 
+
+\subsubsection*{Which REST URIs are defined in the server?}
+\begin{compactitem}
+    \item \verb|/entries| (POST)
+    \item \verb|/entries| (GET)
+    \item \verb|/entries/<entry_id>| (PUT)
+    \item \verb|/entries/<entry_id>| (DELETE)
+    \item \verb|/message| (POST)
+\end{compactitem}
+
+\end{document}
