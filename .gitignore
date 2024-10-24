@@ -10,3 +10,11 @@
 
 # Built Visual Studio Code Extensions
 *.vsix
+
+# latex shit
+*.aux
+*.log
+*.out
+
+# mac shit
+.DS_STORE
