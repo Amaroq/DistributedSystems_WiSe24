@@ -20,3 +20,6 @@
 .DS_STORE
 */.DS_STORE
 **/.DS_STORE
+
+# Ignore Python bytecode cache directory
+__pycache__/

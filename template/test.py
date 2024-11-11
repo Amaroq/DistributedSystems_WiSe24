@@ -14,7 +14,7 @@ dsl_ctrl = DSLTestControl(lc)
 
 NUM_ENTRIES = 10 # You might want to add more entries later to test consistency
 NUM_SERVERS = 4
-SCENARIO = 'perfect' # 'perfect', 'easy', 'medium', 'hard'
+SCENARIO = 'easy' # 'perfect', 'easy', 'medium', 'hard'
 
 IN_PARALLEL = False   # Somebody told me there were issues in the test, I set this to false, tests are now fixed, thank me later
 
