@@ -250,7 +250,14 @@ class Server(Bottle):
         # - What if the request gets lost? (Task 3)
         # - What if the request is delayed? (Task 3)
         # - What if the response gets lost? (optional)
-        return self._send_message(srv_ip, message)
+        
+        res = self._send_message(srv_ip, message)
+        # if message not sent successfully, send again (Task 3b)
+        if (res[0] != True) and (message['type'] == 'propagate'): # check only for propagate
+            #print("send again: ", message)
+            return self.send_message(srv_ip, message)
+        
+        return res
 
     # This method is called whenever a message is received
     # Note that this function call will block one of the NUM_THREADS threads that handle the web server
@@ -261,6 +268,7 @@ class Server(Bottle):
     #   - If a server receives a 'propagate' message, it will add the entry to the board
     def handle_message(self, message):
         # Note that you might need to use the lock
+        # Task 3a
         print("Received message: ", message)
 
         if 'type' in message:
