@@ -285,9 +285,9 @@ class Server(Bottle):
                     self.status['create_entry_ids'] = [[] for x in range(len(self.server_list))] # initialize with one empty list per server
                 
                 entry_value = message['entry_value']
-                # critical section start
+                                # critical section start
                 with self.lock:
-                    entry_id = self.status['num_entries'] + 1
+                    entry_id = self.status['num_entries'] + 1 # coordinator generated id which is sent to all servers
                 # critical section end
                 create_entry_id = message['create_entry_id']
                 from_server = message['from_server']
@@ -329,4 +329,5 @@ NUM_THREADS = 10
 print("#### Starting Server {} with {} threads".format(str(own_id), NUM_THREADS))
 httpserver.serve(server, host='0.0.0.0', port=80, threadpool_workers=NUM_THREADS,
                  threadpool_options={"spawn_if_under": NUM_THREADS})
+
 

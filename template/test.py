@@ -17,7 +17,7 @@ sm = ServerManager(lc)
 NUM_ENTRIES = 10 # You might want to add more entries later to test consistency
 NUM_SERVERS = 4
 # for task 2: perfect scenario
-SCENARIO = 'perfect'
+SCENARIO = 'medium'
 # for other tasks: medium scenario
 #SCENARIO = 'medium' # 'perfect', 'easy', 'medium', 'hard'
 
