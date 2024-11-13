@@ -285,7 +285,10 @@ class Server(Bottle):
                     self.status['create_entry_ids'] = [[] for x in range(len(self.server_list))] # initialize with one empty list per server
                 
                 entry_value = message['entry_value']
-                entry_id = self.status['num_entries'] + 1
+                # critical section start
+                with self.lock:
+                    entry_id = self.status['num_entries'] + 1
+                # critical section end
                 create_entry_id = message['create_entry_id']
                 from_server = message['from_server']
                 #with self.lock:
