@@ -278,8 +278,10 @@ class Server(Bottle):
 
                 assert self.id == 0 # ID 0 is coordinator only this server should receive add_entry messages right now
                 entry_value = message['entry_value']
-                entry_id = self.status['num_entries'] + 1 # coordinator generated id which is sent to all servers
-
+                # critical section start
+                with self.lock:
+                    entry_id = self.status['num_entries'] + 1 # coordinator generated id which is sent to all servers
+                # critical section end
                 # We can safely propagate here since we always have a single frontend client, right? So no need to lock, right? Right?!
                 for other in self.server_list:
                     # TODO: Send message to other servers concurrently?
