@@ -204,7 +204,7 @@ class Server(Bottle):
             entry_value = request.forms.get('value')
             with self.lock:
                     create_entry_id = self.status['num_entries'] + 1
-            # message contains for-server-unique create_entry_id and server_id
+
             self.send_message(self.server_list[0], {'type': 'add_entry', 'entry_value': entry_value, 'create_entry_id': create_entry_id, 'from_server': self.id})
 
             return {}
@@ -245,14 +245,15 @@ class Server(Bottle):
 
 
     def send_message(self, srv_ip, message):
+        # TODO: Implement your custom code here
         # - What if the request gets lost? (Task 3)
         # - What if the request is delayed? (Task 3)
         # - What if the response gets lost? (optional)
         
-        #re-send messages until they are successfully sent
         res = self._send_message(srv_ip, message)
         while (res[0] != True):
-            res = self.send_message(srv_ip, message)        
+            res = self.send_message(srv_ip, message)
+        
         return res
 
     # This method is called whenever a message is received
@@ -270,6 +271,7 @@ class Server(Bottle):
             type = message['type']
 
             if type == 'add_entry':
+
                 assert self.id == 0 # ID 0 is coordinator only this server should receive add_entry messages right now
                 if self.status['num_entries'] == 0:
                     self.status['create_entry_ids'] = [[] for x in range(len(self.server_list))] # initialize with one empty list per server
@@ -277,15 +279,13 @@ class Server(Bottle):
                 entry_value = message['entry_value']
                 # critical section start
                 with self.lock:
-                    entry_id = self.status['num_entries'] + 1 # coordinator-generated id which is sent to all servers
+                    entry_id = self.status['num_entries'] + 1 # coordinator generated id which is sent to all servers
                 # critical section end
-                
-                #check if entry is already saved
                 create_entry_id = message['create_entry_id']
                 from_server = message['from_server']
+                
                 # We can safely propagate here since we always have a single frontend client, right? So no need to lock, right? Right?!
-                # check if message is duplicate
-                if create_entry_id not in self.status['create_entry_ids'][from_server]:
+                if create_entry_id not in self.status['create_entry_ids'][from_server]: # check if message is doublicate
                     self.status['create_entry_ids'][from_server].append(create_entry_id)
                     for other in self.server_list:
                         # TODO: Send message to other servers concurrently?
@@ -318,5 +318,6 @@ NUM_THREADS = 10
 print("#### Starting Server {} with {} threads".format(str(own_id), NUM_THREADS))
 httpserver.serve(server, host='0.0.0.0', port=80, threadpool_workers=NUM_THREADS,
                  threadpool_options={"spawn_if_under": NUM_THREADS})
+
 
 
