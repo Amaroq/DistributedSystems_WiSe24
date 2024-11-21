@@ -30,6 +30,21 @@ try:
     dsl_ctrl.wait_until(lambda: dsl_ctrl.assertion_equal('all', 'all'))  # wait until all servers have the same number of entries this will loop if there is no consistency!
     print("Time taken: " + str(time.time() - start_time))
 
+    dsl_ctrl.waits(2) # wait for two seconds, then spawn two threads and start two more servers at the same time
+    
+    def t1():
+        dsl_ctrl.init_servers(1)
+        time.sleep(2)
+    def t2():
+        dsl_ctrl.init_servers(1)
+        time.sleep(2)
+
+    thread1 = threading.Thread(target=t1)
+    thread2 = threading.Thread(target=t2)
+
+    thread1.start()
+    thread2.start()
+
     dsl_ctrl.waits(900) # leave the servers running for 15 minutes
 except KeyboardInterrupt:
     lc.shutdown()

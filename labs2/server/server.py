@@ -3,6 +3,8 @@ from bottle import Bottle, request, HTTPError, run, response
 
 from paste import httpserver
 
+import uuid
+
 import threading
 import os
 import time
@@ -52,6 +54,10 @@ class Server(Bottle):
         self.id = int(ID)
         self.ip = str(IP)
         self.server_list = server_list
+        #TODO UUID
+        self.uuid = uuid.uuid4()
+
+        print("server started with uuid" + str(self.uuid))
 
         self.status = {
             "crashed": False,
