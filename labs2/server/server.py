@@ -209,7 +209,10 @@ class Server(Bottle):
             entry_value = request.forms.get('value')
             with self.lock:
                 self.status['num_entries'] += 1
-                entry_id = self.status['num_entries']
+                # Task 1
+                timestamp = int(time.time()) # timestamp for order
+                id = uuid.uuid4() # unique id
+                entry_id = str(timestamp) + str(id) # entry_id is timestamp + uuid
                 entry = Entry(entry_id, entry_value)
                 self.board.add_entry(entry)
             # TODO: Propagate the entry to all other servers?!
