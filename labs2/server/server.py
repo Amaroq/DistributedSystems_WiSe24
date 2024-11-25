@@ -4,6 +4,7 @@ from bottle import Bottle, request, HTTPError, run, response
 from paste import httpserver
 
 import uuid
+import queue
 
 import threading
 import os
@@ -56,6 +57,9 @@ class Server(Bottle):
         self.server_list = server_list
         #TODO UUID
         self.uuid = uuid.uuid4()
+        # queues for sending and receiving messages Task 2
+        self.queue_in = queue.Queue()
+        self.queue_out = queue.Queue()
 
         print("server started with uuid" + str(self.uuid))
 
@@ -66,7 +70,9 @@ class Server(Bottle):
         }
 
         self.lock = threading.RLock()  # use reentry lock for the server
-
+        
+        threading.Thread(target=self.propagate, daemon=True).start() # thread for outgoing messages Task 2
+        
         # Handle CORS
         self.route('/<:re:.*>', method='OPTIONS', callback=self.add_cors_headers)
         self.add_hook('after_request', self.add_cors_headers)
@@ -216,6 +222,9 @@ class Server(Bottle):
                 entry = Entry(entry_id, entry_value)
                 self.board.add_entry(entry)
             # TODO: Propagate the entry to all other servers?!
+            for other in self.server_list:
+                message = (other, {'type': 'propagate', 'entry_value': entry_value, 'entry_id': entry_id})
+                self.queue_out.put(message)
 
             return {}
         except Exception as e:
@@ -255,6 +264,17 @@ class Server(Bottle):
             print("[ERROR] " + str(e))
             raise e
 
+    # send propagation messages from outgoing queue Task 2
+    def propagate(self):
+        while True:
+            message = self.queue_out.get()
+            #for other in self.server_list:
+            print("sent message")
+            result = self.send_message(message[0], message[1])
+            if result[0] == False:
+                self.queue_out.put(message)
+            
+
     def send_message(self, srv_ip, message):
         # TODO: Implement your custom code here, use your solution to lab 1 to send messages between servers reliably
         # - What if the request gets lost?
@@ -267,6 +287,18 @@ class Server(Bottle):
     def handle_message(self, message):
         # Note that you might need to use the lock
         print("Received message: ", message)
+        type = message['type']
+        
+        # propagation message: add entry to board  Task 2
+        if type == 'propagate':
+                entry_value = message['entry_value']
+                entry_id = message['entry_id']
+                with self.lock:
+                    self.status['num_entries'] += 1
+                    entry = Entry(entry_id, entry_value)
+                    self.board.add_entry(entry)
+        else:
+            print("Received weird message?")
 
         return {}
 
