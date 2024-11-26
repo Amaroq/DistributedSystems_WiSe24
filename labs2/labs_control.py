@@ -27,7 +27,7 @@ class LabsControl:
         if self.sp is not None:
             return
         self.num_servers = num_servers
-        self.sp = subprocess.Popen("python {}/labs.py {} {} {}".format(self.base_path, num_servers, scenario, scenario_timeout), shell=True, stdin=subprocess.PIPE, encoding='utf-8')
+        self.sp = subprocess.Popen("python3 {}/labs.py {} {} {}".format(self.base_path, num_servers, scenario, scenario_timeout), shell=True, stdin=subprocess.PIPE, encoding='utf-8')
 
     def change_scenario(self, s):
         if self.sp:
