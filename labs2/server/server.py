@@ -4,6 +4,10 @@ from bottle import Bottle, request, HTTPError, run, response
 from paste import httpserver
 
 import uuid
+import datetime
+from time import strftime
+from time import strptime
+import random
 
 import threading
 import os
@@ -41,9 +45,15 @@ class Board():
 
     def add_entry(self, entry):
         self.indexed_entries[entry.id] = entry
+    
+    def get_uuid_timestamp(self, uuid):
+        timestamp = uuid[0:17]
+        return time.strptime(timestamp, '%m/%d/%y %H:%M:%S')
 
+    # this is so wonky, ngl
     def get_ordered_entries(self):
-        ordered_indices = sorted(list(self.indexed_entries.keys()))
+        ordered_indices = list(self.indexed_entries.keys())
+        ordered_indices = sorted(ordered_indices, key = lambda x: self.get_uuid_timestamp(x))
         return [self.indexed_entries[k] for k in ordered_indices]
 
 # ------------------------------------------------------------------------------------------------------
@@ -54,10 +64,6 @@ class Server(Bottle):
         self.id = int(ID)
         self.ip = str(IP)
         self.server_list = server_list
-        #TODO UUID
-        self.uuid = uuid.uuid4()
-
-        print("server started with uuid" + str(self.uuid))
 
         self.status = {
             "crashed": False,
@@ -208,8 +214,10 @@ class Server(Bottle):
 
             entry_value = request.forms.get('value')
             with self.lock:
-                self.status['num_entries'] += 1
-                entry_id = self.status['num_entries']
+                self.status['num_entries'] += 1                                 # do we still need this?
+                timestamp = datetime.datetime.now()
+                random_number = random.randint(100000, 999999)                  # should be enough to make collissions highly unlikely
+                entry_id = timestamp.strftime('%m/%d/%y %H:%M:%S') + '-' + str(self.ip) + '-' + str(random_number)
                 entry = Entry(entry_id, entry_value)
                 self.board.add_entry(entry)
             # TODO: Propagate the entry to all other servers?!
