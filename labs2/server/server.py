@@ -57,11 +57,10 @@ class Server(Bottle):
         self.server_list = server_list
         #TODO UUID
         self.uuid = uuid.uuid4()
-        # queues for sending and receiving messages Task 2
-        self.queue_in = queue.Queue()
+        # queue for outgoing messages Task 2
         self.queue_out = queue.Queue()
 
-        print("server started with uuid" + str(self.uuid))
+        #print("server started with uuid" + str(self.uuid))
 
         self.status = {
             "crashed": False,
@@ -268,8 +267,6 @@ class Server(Bottle):
     def propagate(self):
         while True:
             message = self.queue_out.get()
-            #for other in self.server_list:
-            print("sent message")
             result = self.send_message(message[0], message[1])
             if result[0] == False:
                 self.queue_out.put(message)
