@@ -32,8 +32,8 @@ for i in range (0,2): # to test functionality, only try perfect and easy for now
     SCENARIO_PARTITIONED = SCENARIO + '_partitioned'
     IN_PARALLEL = True
 
-    for j in range (2,5): # increase number of servers (max on this machine is 4 servers)
-        time.sleep(2) # sleep for a bit until all connections are properly reset
+    for j in range (2,10): # increase number of servers (max on this machine is 4 servers)
+        #time.sleep(2) # sleep for a bit until all connections are properly reset
         if j == 2:
             PARTITIONS = [[0],[1]]
         elif j == 3:
@@ -41,23 +41,23 @@ for i in range (0,2): # to test functionality, only try perfect and easy for now
         elif j == 4:
             PARTITIONS = [[0,2],[1,3]]
         elif j == 5:
-            PARTITIONS = [[0,2,5],[1,3]]
+            PARTITIONS = [[0,2,4],[1,3]]
         elif j == 6:
-            PARTITIONS = [[0,2],[1,3],[5,6]]
+            PARTITIONS = [[0,2,4],[1,3,5]]
         elif j == 7:
-            PARTITIONS = [[0,2,5,7],[1,3,6]]
+            PARTITIONS = [[0,2,4,6],[1,3,5]]
         elif j == 8:
-            PARTITIONS = [[0,2],[1,3],[5,7],[6,8]]
+            PARTITIONS = [[0,2,4,6],[1,3,5,7]]
         elif j == 9:
-            PARTITIONS = [[0,2,5,7,9],[1,3,6,8]]
+            PARTITIONS = [[0,2,4,6,8],[1,3,6,7]]
         elif j == 10:
-            PARTITIONS = [[0,2,5,7,9],[1,3,6,8,10]]
+            PARTITIONS = [[0,2,4,6,8],[1,3,6,7,9]]
         NUM_SERVERS = j # you can scale this up but need to change the partitions to test as well
 
-        for n in range(1,4): # increase number of entries
+        for n in range(1,6): # increase number of entries SET TO 4 FOR 10,20,30 entries
             NUM_ENTRIES = NUM_ENTRIES * n # test for 10, 20 and 30
             k = 1
-            while (k <= 3):
+            while (k <= 3): # SET TO 3 FOR THREE TESTS
                 try:
                     lc.build()  # build the servers to make sure that they are up to date for the test
                     dsl_ctrl.init_servers(NUM_SERVERS)  # Initialize servers
@@ -95,6 +95,6 @@ for i in range (0,2): # to test functionality, only try perfect and easy for now
                     lc.shutdown()
                 finally:
                     lc.shutdown()
-                time.sleep(2) # sleep for a bit until all connections are properly reset
+                #time.sleep(2) # sleep for a bit until all connections are properly reset
                 k = k+1
             NUM_ENTRIES = 10
