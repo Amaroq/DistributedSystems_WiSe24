@@ -1,0 +1,4 @@
+number of servers, time to reach consistency in partitions, time until consistency on servers, test number
+2,0.14039921760559082, 0.12403202056884766,1
+2,0.13527178764343262, 0.13416194915771484,2
+2,0.13900399208068848, 0.12288379669189453,3
