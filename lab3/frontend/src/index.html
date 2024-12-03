@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <title>Board (%GROUP_NAME%)</title>
+
+    <!-- Bootstrap core CSS -->
+    <link href="/vendor/bootstrap-4.4.1-dist/css/bootstrap.min.css" rel="stylesheet">
+
+</head>
+
+<body>
+<main role="main" class="container" id="app">
+
+    <div class="row mb-4">
+        <div class="col">
+            <h1>Board (%GROUP_NAME%)</h1>
+        </div>
+    </div>
+    <div class="row mb-4">
+        <div class="col">
+            <div class="input-group">
+                <select class="custom-select" v-model="serverId" @change="changeServer">
+                    <option v-for="(item, index) in servers" v-bind:value="index">
+                        Server {{ index }}
+                    </option>
+                </select>
+                <div class="input-group-append">
+                    <button type="button" class="btn btn-outline-secondary" v-on:click="reloadBoard()"
+                            :disabled="loading">
+                        <span v-if="loading" class="spinner-border spinner-border-sm" role="status"
+                              aria-hidden="true"></span>
+                        Reload
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="row mb-4">
+        <div class="col">
+            <div class="input-group">
+                <input class="form-control" placeholder="Entry Value" v-model="entryValue">
+                <div class="input-group-append">
+                    <button type="button" class="btn btn-outline-primary" v-on:click="createEntry()"
+                            :disabled="requesting || loading">
+                        <span v-if="requesting" class="spinner-border spinner-border-sm" role="status"
+                              aria-hidden="true"></span>
+                        Create
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="row mb-4">
+        <div class="col">
+            <h3>Server Status</h3>
+
+            <div class="btn-group" role="group" aria-label="  ">
+                <button type="button" class="btn btn-danger" v-on:click="crashServer()"
+                        :disabled="requesting || loading || server_status.crashed">Crash
+                </button>
+                <button type="button" class="btn btn-warning" v-on:click="recoverServer()"
+                        :disabled="requesting || loading || !server_status.crashed">Recover
+                </button>
+            </div>
+            <div v-if="!loading">
+                <div v-if="!server_status" class="d-flex align-items-center">
+                    No Status...
+                </div>
+                <ul v-if="server_status" class="list-group">
+                    <li class="list-group-item"><b>Hash:</b> {{ server_status.hash }}</li>
+                    <li class="list-group-item"><b>Num Entries:</b> {{ server_status.len }}</li>
+                    <li class="list-group-item"><b>Crashed:</b> {{ server_status.crashed }}</li>
+                    <li class="list-group-item"><b>Clock:</b> {{ server_status.clock }}</li>
+                    <li class="list-group-item"><b>Notes:</b> {{ server_status.notes }}</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+    <div class="row mb-4">
+        <div class="col">
+            <h3>Entries</h3>
+            <div v-if="!loading">
+                <div v-if="entries.length == 0" class="d-flex align-items-center">
+                    No Entries...
+                </div>
+                <ul class="list-group">
+                    <li v-for="entry in entries" class="list-group-item">
+                        <span style="font-family: monospace">{{ entry.id }}:</span> {{ entry.value }}
+                            <span class="float-right">
+                                <span class="btn-group btn-group-sm" role="group" aria-label="  ">
+                                <span type="button" class="btn  btn-info" v-on:click="updateEntry(entry.id, entryValue)"
+                                        :disabled="requesting || loading || server_status.crashed">Update
+                                </span>
+                                <span type="button" class="btn btn-warning" v-on:click="deleteEntry(entry.id)"
+                                        :disabled="requesting || loading || !server_status.crashed">Delete
+                                </span>
+                            </span>
+                        </span>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</main>
+
+<script src="/vendor/jquery/jquery-3.4.1.min.js"></script>
+<script src="/vendor/bootstrap-4.4.1-dist/js/bootstrap.min.js"></script>
+<script src="/vendor/vue/vue.min.js"></script>
+<script src="/frontend.js"></script>
+
+<script type="text/javascript">
+    var servers = "%SERVER_LIST%".split(',');
+    initFrontend(servers, parseInt("%SERVER_ID%"));
+</script>
+</body>
+</html>
