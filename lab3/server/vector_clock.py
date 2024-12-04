@@ -24,10 +24,12 @@ class VectorClock():
         pass
 
     # Todo: Implement me
-    def from_list(self, entries : list) -> Self:
-        self.clock = copy.deepcopy(entries)
-        self.n = len(entries)
-        return self
+    @classmethod
+    def from_list(cls, entries : list) -> Self:
+        vectorclock = cls()
+        vectorclock.clock = copy.deepcopy(entries)
+        vectorclock.n = len(entries)
+        return vectorclock
 
     # Todo: Implement me
     def to_list(self) -> list:
@@ -106,6 +108,14 @@ if __name__ == "__main__":
     assert c4.is_parallel(c3)
     assert not c4.is_parallel(c4)
     
-    print(c3.to_list())
+    #print(c3.to_list())
+    
+    c6 = VectorClock(n=5)
+    #print(c6)
+    
+    c8 = VectorClock(n=3, entries=[0,0,0])
+    c9 = VectorClock(n=3, entries=[0,0,0])
+    assert not c4.__lt__(c3)
+    assert not c3.__lt__(c4)
     
     

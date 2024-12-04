@@ -8,6 +8,8 @@ import os
 import time
 import json
 import hashlib
+import uuid
+import queue
 
 import requests
 import functools
@@ -64,7 +66,11 @@ class Board():
         entries = [e for e in list(self.indexed_entries.values()) if
                    not e.is_deleted()]  # we filter out deleted items as they should not appear for the clients
         # we then return the sorted entries
-        return sorted(entries)
+        #return sorted(entries)
+        
+        # Task 3 sort entries based on vector clocks
+        sorted_entries = sorted(entries, key=lambda x: (x.id, x.create_ts))
+        return sorted_entries
 
 # ------------------------------------------------------------------------------------------------------
 class Server(Bottle):
@@ -80,6 +86,10 @@ class Server(Bottle):
             "notes": "",
             "num_entries": 0, # we use this to generate ids for the entries, TODO: Use lab 2 solution to generate unique ids
         }
+        
+        # handle outgoing messages (lab 2)
+        self.queue_out = queue.Queue()
+        threading.Thread(target=self.propagate, daemon=True).start()
 
         self.lock = threading.RLock()  # use reentry lock for the server
         self.clock = VectorClock(n=len(self.server_list))
@@ -228,10 +238,16 @@ class Server(Bottle):
             entry_value = request.forms.get('value')
             with self.lock:
                 self.status['num_entries'] += 1
-                entry_id = self.status['num_entries']
-                entry = Entry(entry_id, entry_value, create_ts=self.clock.copy())
+                #entry_id = self.status['num_entries']
+                unique_id = uuid.uuid4()
+                entry_id = str(unique_id)                
+                create_ts = create_ts=self.clock.copy()                
+                entry = Entry(entry_id, entry_value, create_ts)
                 self.board.add_entry(entry)
                 # TODO: Propagate the entry to all other servers?! (based on your Lab 2 solution)
+                for other in self.server_list:
+                    message = (other, {'type': 'propagate', 'entry_value': entry_value, 'entry_id': entry_id, 'timestamp': create_ts.to_list()})
+                    self.queue_out.put(message)
                 # TODO: Handle with vector clocks (but make sure that you lock your threads for the clock access)
 
             return {}
@@ -270,6 +286,14 @@ class Server(Bottle):
             print("[ERROR] " + str(e))
             raise e
 
+    # send propagation messages from outgoing queue (lab 2)
+    def propagate(self):
+        while True:
+            message = self.queue_out.get()
+            result = self.send_message(message[0], message[1])
+            if result[0] == False:
+                self.queue_out.put(message)
+    
     def send_message(self, srv_ip, message):
         # TODO: Implement your custom code here, use your solution to lab 1 to send messages between servers reliably
         # - What if the request gets lost?
@@ -278,10 +302,23 @@ class Server(Bottle):
         return self._send_message(srv_ip, message)
 
 
-    # This method is called for every message received
+    # This method is called for every message received (lab 2)
     def handle_message(self, message):
         # Note that you might need to use the lock
         print("Received message: ", message)
+        type = message['type']
+        
+        # propagation message: add entry to board  Task 2
+        if type == 'propagate':
+                entry_value = message['entry_value']
+                entry_id = message['entry_id']
+                entry_timestamp = VectorClock.from_list(entries = message['timestamp'])
+                with self.lock:
+                    self.status['num_entries'] += 1
+                    entry = Entry(entry_id, entry_value, entry_timestamp)
+                    self.board.add_entry(entry)
+        else:
+            print("Received weird message?")
 
         return {}
 
@@ -299,3 +336,4 @@ NUM_THREADS = 10
 print("#### Starting Server {} with {} threads".format(str(own_id), NUM_THREADS))
 httpserver.serve(server, host='0.0.0.0', port=80, threadpool_workers=NUM_THREADS,
                  threadpool_options={"spawn_if_under": NUM_THREADS})
+
