@@ -69,7 +69,7 @@ class Board():
         #return sorted(entries)
         
         # Task 3 sort entries based on vector clocks
-        sorted_entries = sorted(entries, key=lambda x: (x.id, x.create_ts))
+        sorted_entries = sorted(entries, key=lambda x: (x.create_ts, x.id))
         return sorted_entries
 
 # ------------------------------------------------------------------------------------------------------
@@ -241,7 +241,8 @@ class Server(Bottle):
                 #entry_id = self.status['num_entries']
                 unique_id = uuid.uuid4()
                 entry_id = str(unique_id)                
-                create_ts = create_ts=self.clock.copy()                
+                #create_ts = create_ts=self.clock.copy()
+                create_ts = VectorClock(n=4, entries=[0,0,0,0])
                 entry = Entry(entry_id, entry_value, create_ts)
                 self.board.add_entry(entry)
                 # TODO: Propagate the entry to all other servers?! (based on your Lab 2 solution)
