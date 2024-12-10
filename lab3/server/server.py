@@ -266,7 +266,24 @@ class Server(Bottle):
             entry_value = request.forms.get('value')
             with self.lock:
                 print("Updating entry with id {} to value {}".format(entry_id, entry_value))
-                # TODO: Handle with vector clocks
+                entry = self.board.indexed_entries.get(entry_id)
+                print(entry)
+                if entry is None or entry.is_deleted():                                 # check if entry exists first
+                    return {'error': 'entry does not exist or has been deleted.'}       # return error if entry doesn't exist
+                self.clock.increment(self.id)                                           # increment own clock on update event
+                entry.value = entry_value                                               # update entry value
+                entry.modify_ts = self.clock.copy()                                     # update modify timestamp to current own clock
+                #print(entry)
+                for other in self.server_list:                                          # propagate to other servers
+                    message = (other, {
+                        'type': 'modify',
+                        'entry_id': entry.id,
+                        'entry_value': entry_value,
+                        'timestamp': entry.modify_ts.to_list(),
+                        'sent_from': self.id
+                    })
+                    self.queue_out.put(message)
+
 
             return {}
         except Exception as e:
@@ -319,12 +336,28 @@ class Server(Bottle):
                     with self.lock:                                                             # lock for incrementing
                         #entry_timestamp.increment(self.id)
                         if not self.id == message['sent_from']:
-                            self.clock.increment(self.id)                                           # increment own clock
-                        self.clock.update(entry_timestamp)                              # update own clock
+                            self.clock.increment(self.id)                                       # increment own clock
+                        self.clock.update(entry_timestamp)                                      # update own clock
                         self.status['num_entries'] += 1
                         entry = Entry(entry_id, entry_value, entry_timestamp)
                         self.board.add_entry(entry)
-                        print('received: ' + str(entry_timestamp) + ', updated: ' + str(self.clock))
+
+        elif type == 'modify':
+            entry_id = message['entry_id']
+            modify_ts = VectorClock.from_list(entries = message['timestamp'])
+            entry_value = message['entry_value']
+            entry = self.board.indexed_entries.get(entry_id)
+            if entry is None or entry.is_deleted():
+                return
+            with self.lock:
+                if not self.id == message['sent_from']:
+                    self.clock.increment(self.id)
+                if entry.modify_ts is None or entry.modify_ts < modify_ts:
+                    self.clock.update(modify_ts)
+                    entry.value = entry_value
+                    entry.modify_ts = modify_ts
+                    self.board.add_entry(entry)
+        
         else:
             print("Received weird message?")
 
