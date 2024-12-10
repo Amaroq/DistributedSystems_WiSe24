@@ -240,14 +240,15 @@ class Server(Bottle):
                 self.status['num_entries'] += 1
                 #entry_id = self.status['num_entries']
                 unique_id = uuid.uuid4()
-                entry_id = str(unique_id)                
-                #create_ts = create_ts=self.clock.copy()
-                create_ts = VectorClock(n=4, entries=[0,0,0,0])
-                entry = Entry(entry_id, entry_value, create_ts)
-                self.board.add_entry(entry)
+                entry_id = str(unique_id)
+                with self.lock:                                 # lock incrementing own clock just in case multithreaded stuff is happening
+                    self.clock.increment(self.id)               # increment own clock (because an event happened)
+                create_ts = create_ts=self.clock.copy()         # copy current clock value to create_ts
+                entry = Entry(entry_id, entry_value, create_ts) # create new entry with create_ts
+                self.board.add_entry(entry)                     # add new entry to board
                 # TODO: Propagate the entry to all other servers?! (based on your Lab 2 solution)
                 for other in self.server_list:
-                    message = (other, {'type': 'propagate', 'entry_value': entry_value, 'entry_id': entry_id, 'timestamp': create_ts.to_list()})
+                    message = (other, {'type': 'propagate', 'entry_value': entry_value, 'entry_id': entry_id, 'timestamp': create_ts.to_list(), 'sent_from': self.id})
                     self.queue_out.put(message)
                 # TODO: Handle with vector clocks (but make sure that you lock your threads for the clock access)
 
@@ -313,11 +314,17 @@ class Server(Bottle):
         if type == 'propagate':
                 entry_value = message['entry_value']
                 entry_id = message['entry_id']
-                entry_timestamp = VectorClock.from_list(entries = message['timestamp'])
-                with self.lock:
-                    self.status['num_entries'] += 1
-                    entry = Entry(entry_id, entry_value, entry_timestamp)
-                    self.board.add_entry(entry)
+                if len(message['timestamp']) == len(self.clock.to_list()):                      # check if both clocks are same length (same number of servers for both clocks)
+                    entry_timestamp = VectorClock.from_list(entries = message['timestamp'])     # parse vc
+                    with self.lock:                                                             # lock for incrementing
+                        #entry_timestamp.increment(self.id)
+                        if not self.id == message['sent_from']:
+                            self.clock.increment(self.id)                                           # increment own clock
+                        self.clock.update(entry_timestamp)                              # update own clock
+                        self.status['num_entries'] += 1
+                        entry = Entry(entry_id, entry_value, entry_timestamp)
+                        self.board.add_entry(entry)
+                        print('received: ' + str(entry_timestamp) + ', updated: ' + str(self.clock))
         else:
             print("Received weird message?")
 
