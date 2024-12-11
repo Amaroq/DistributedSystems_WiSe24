@@ -243,7 +243,7 @@ class Server(Bottle):
                 entry_id = str(unique_id)
                 with self.lock:                                 # lock incrementing own clock just in case multithreaded stuff is happening
                     self.clock.increment(self.id)               # increment own clock (because an event happened)
-                create_ts = create_ts=self.clock.copy()         # copy current clock value to create_ts
+                create_ts = self.clock.copy()                   # copy current clock value to create_ts
                 entry = Entry(entry_id, entry_value, create_ts) # create new entry with create_ts
                 self.board.add_entry(entry)                     # add new entry to board
                 # TODO: Propagate the entry to all other servers?! (based on your Lab 2 solution)
@@ -365,8 +365,8 @@ class Server(Bottle):
             with self.lock:
                 if not self.id == message['sent_from']:
                     self.clock.increment(self.id)
+                self.clock.update(modify_ts)
                 if entry.modify_ts is None or entry.modify_ts < modify_ts:
-                    self.clock.update(modify_ts)
                     entry.value = entry_value
                     entry.modify_ts = modify_ts
                     self.board.add_entry(entry)
@@ -380,6 +380,7 @@ class Server(Bottle):
             with self.lock:
                 if not self.id == message['sent_from']:
                     self.clock.increment(self.id)                               # entry already deleted on self
+                self.clock.update(delete_ts)
                 if entry.delete_ts is None or entry.delete_ts < delete_ts:
                     entry.delete_ts = delete_ts
                     self.board.add_entry(entry)
