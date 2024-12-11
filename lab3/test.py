@@ -27,7 +27,7 @@ try:
 
     start_time = time.time()
     dsl_ctrl.add_entries(NUM_ENTRIES, 'all', parallel=IN_PARALLEL)  # Add entries to each server (in parallel)
-    dsl_ctrl.wait_until_all_same_state(0)
+    dsl_ctrl.wait_until_all_same_state(NUM_ENTRIES * NUM_SERVERS)
     print("Add: Time taken: " + str(time.time() - start_time))
 
     # Relevant for task 4!
@@ -37,7 +37,7 @@ try:
     # print("Modify: Time taken: " + str(time.time() - start_time))
     #
     # start_time = time.time()
-    # dsl_ctrl.delete_entries(NUM_ENTRIES, 'all', parallel=IN_PARALLEL)  # Delete entries from all servers
+    # dsl_ctrl.delete_entries('all', 'all', parallel=IN_PARALLEL)  # Delete entries from all servers
     # dsl_ctrl.wait_until_all_same_state(0)
     # print("Delete: Time taken: " + str(time.time() - start_time))
 

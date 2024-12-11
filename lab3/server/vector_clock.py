@@ -117,7 +117,12 @@ if __name__ == "__main__":
     
     c8 = VectorClock(n=3, entries=[0,0,0])
     c9 = VectorClock(n=3, entries=[0,0,0])
-    assert not c4.__lt__(c3)
-    assert not c3.__lt__(c4)
+    assert not c8.__lt__(c8)
+    assert not c9.__lt__(c8)
+    
+    c10 = VectorClock(n=4, entries=[10, 12, 14, 26] )
+    c11 = VectorClock(n=4, entries=[9, 11, 25, 0]  )
+    assert c10 > c8
+    assert c8 < c10
     
     

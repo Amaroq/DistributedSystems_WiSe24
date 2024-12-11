@@ -49,8 +49,13 @@ class Entry:
 
     def __lt__(self, other):
         # TODO: implement the sorting here! Please use the creation vector clock first to preserve causality and then use the entry ID as a tie-breaker,
-        return False
-
+        if self.create_ts < other.create_ts:
+            return True
+        elif self.create_ts > other.create_ts:
+            return False
+        else:
+            return self.id < other.id
+        
 # ------------------------------------------------------------------------------------------------------
 # You need to synchronize the access to the board when you use multithreading in the server (e.g. using a Lock)
 class Board():
@@ -69,7 +74,8 @@ class Board():
         #return sorted(entries)
         
         # Task 3 sort entries based on vector clocks
-        sorted_entries = sorted(entries, key=lambda x: (x.create_ts, x.id))
+        #sorted_entries = sorted(entries, key=lambda x: (x.create_ts, x.id))
+        sorted_entries = sorted(entries)
         return sorted_entries
 
 # ------------------------------------------------------------------------------------------------------
@@ -244,13 +250,13 @@ class Server(Bottle):
                 with self.lock:                                 # lock incrementing own clock just in case multithreaded stuff is happening
                     self.clock.increment(self.id)               # increment own clock (because an event happened)
                 create_ts = self.clock.copy()                   # copy current clock value to create_ts
-                #entry = Entry(entry_id, entry_value, create_ts) # create new entry with create_ts
-                entry = Entry(entry_id, str(create_ts.to_list()), create_ts) # TEST
+                entry = Entry(entry_id, entry_value, create_ts) # create new entry with create_ts
+                #entry = Entry(entry_id, str(create_ts.to_list()), create_ts) # TEST
                 self.board.add_entry(entry)                     # add new entry to board
                 # TODO: Propagate the entry to all other servers?! (based on your Lab 2 solution)
                 for other in self.server_list:
                     message = (other, {'type': 'propagate', 'entry_value': entry_value, 'entry_id': entry_id, 'timestamp': create_ts.to_list(), 'sent_from': self.id})
-                    #message = (other, {'type': 'propagate', 'entry_value': str(create_ts.to_list()), 'entry_id': entry_id, 'timestamp': create_ts.to_list(), 'sent_from': self.id})
+                    #message = (other, {'type': 'propagate', 'entry_value': str(create_ts.to_list()), 'entry_id': entry_id, 'timestamp': create_ts.to_list(), 'sent_from': self.id}) # TEST
 
                     self.queue_out.put(message)
                 # TODO: Handle with vector clocks (but make sure that you lock your threads for the clock access)
@@ -407,4 +413,6 @@ NUM_THREADS = 10
 print("#### Starting Server {} with {} threads".format(str(own_id), NUM_THREADS))
 httpserver.serve(server, host='0.0.0.0', port=80, threadpool_workers=NUM_THREADS,
                  threadpool_options={"spawn_if_under": NUM_THREADS})
+
+
 

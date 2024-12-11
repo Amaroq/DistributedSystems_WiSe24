@@ -27,7 +27,7 @@ class LabsControl:
         if self.sp is not None:
             return
         self.num_servers = num_servers
-        self.sp = subprocess.Popen("python3 {}/labs.py {} {} {}".format(self.base_path, num_servers, scenario, scenario_timeout), shell=True, stdin=subprocess.PIPE, encoding='utf-8')
+        self.sp = subprocess.Popen("python {}/labs.py {} {} {}".format(self.base_path, num_servers, scenario, scenario_timeout), shell=True, stdin=subprocess.PIPE, encoding='utf-8')
 
     def change_scenario(self, s):
         if self.sp:
@@ -190,7 +190,7 @@ class EntryManager:
         callbacks = [functools.partial(add_entries_cb, server) for server in servers]
         return self.handle(callbacks, parallel)
 
-    def modify_entries(self, servers, parallel=False):
+    def modify_entries(self, count, servers, parallel=False):
         entry_ids_all = self.get_entry_ids_for_all_servers()
 
         def modify_entries_cb(server):
@@ -198,13 +198,16 @@ class EntryManager:
             if len(entry_ids) == 0:
                 return
 
-            for eid in entry_ids:
+            k = min(count, len(entry_ids)) if count is not None and count != 'all' else len(entry_ids)
+            sampled_ids = random.sample(entry_ids, k)
+
+            for eid in sampled_ids:
                 self.modify_entry_on_sever(server, eid, random.randint(0, 1000000))
 
         callbacks = [functools.partial(modify_entries_cb, server) for server in servers]
         return self.handle(callbacks, parallel)
 
-    def delete_entries(self, servers, parallel=False):
+    def delete_entries(self, count, servers, parallel=False):
         entry_ids_all = self.get_entry_ids_for_all_servers()
 
         def modify_entries_cb(sid):
@@ -213,7 +216,10 @@ class EntryManager:
             if len(entry_ids) == 0:
                 return
 
-            for eid in entry_ids:
+            k = min(count, len(entry_ids)) if count is not None and count != 'all' else len(entry_ids)
+            sampled_ids = random.sample(entry_ids, k)
+
+            for eid in sampled_ids:
                 self.delete_entry_on_sever(sid, eid)
 
         callbacks = [functools.partial(modify_entries_cb, server) for server in servers]
