@@ -244,11 +244,14 @@ class Server(Bottle):
                 with self.lock:                                 # lock incrementing own clock just in case multithreaded stuff is happening
                     self.clock.increment(self.id)               # increment own clock (because an event happened)
                 create_ts = self.clock.copy()                   # copy current clock value to create_ts
-                entry = Entry(entry_id, entry_value, create_ts) # create new entry with create_ts
+                #entry = Entry(entry_id, entry_value, create_ts) # create new entry with create_ts
+                entry = Entry(entry_id, str(create_ts.to_list()), create_ts) # TEST
                 self.board.add_entry(entry)                     # add new entry to board
                 # TODO: Propagate the entry to all other servers?! (based on your Lab 2 solution)
                 for other in self.server_list:
                     message = (other, {'type': 'propagate', 'entry_value': entry_value, 'entry_id': entry_id, 'timestamp': create_ts.to_list(), 'sent_from': self.id})
+                    #message = (other, {'type': 'propagate', 'entry_value': str(create_ts.to_list()), 'entry_id': entry_id, 'timestamp': create_ts.to_list(), 'sent_from': self.id})
+
                     self.queue_out.put(message)
                 # TODO: Handle with vector clocks (but make sure that you lock your threads for the clock access)
 

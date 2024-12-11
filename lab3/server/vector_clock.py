@@ -1,4 +1,5 @@
 from typing import Self
+from functools import total_ordering
 import copy
 
 class VectorClock():
@@ -46,6 +47,7 @@ class VectorClock():
 
     # Todo: Implement me
     # self strictly smaller than other (compare each pair of entries)
+    @total_ordering
     def __lt__(self, other):
         # TODO: implement me if our clock is strictly smaller than the other one!
         for s, o in zip(self.clock, other.clock):
