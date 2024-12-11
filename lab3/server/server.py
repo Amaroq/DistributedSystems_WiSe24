@@ -284,7 +284,6 @@ class Server(Bottle):
                     })
                     self.queue_out.put(message)
 
-
             return {}
         except Exception as e:
             print("[ERROR] " + str(e))
@@ -295,10 +294,24 @@ class Server(Bottle):
             if self.status["crashed"]:
                 response.status = 408
                 return
-
+            entry = self.board.indexed_entries.get(entry_id)
+            if entry is None or entry.is_deleted():                                     # check if entry exists first
+                    return {'error': 'entry does not exist or has been deleted.'}       # return error if entry doesn't exist
             with self.lock:
                 print("Deleting entry with id {}".format(entry_id))
-                # TODO: Handle with vector clocks
+                
+                self.clock.increment(self.id)                           # increase own clock
+                entry.delete_ts = self.clock.copy()                     # add current clock to entry as delete_ts
+                self.board.add_entry(entry)                             # add updated entry to board
+            
+                for other in self.server_list:
+                    message = (other, {
+                        'type': 'delete',
+                        'entry_id': entry_id,
+                        'timestamp': entry.delete_ts.to_list(),
+                        'sent_from': self.id
+                    })
+                    self.queue_out.put(message)
 
             return {}
         except Exception as e:
@@ -348,7 +361,7 @@ class Server(Bottle):
             entry_value = message['entry_value']
             entry = self.board.indexed_entries.get(entry_id)
             if entry is None or entry.is_deleted():
-                return
+                return {'error': 'entry does not exist or has been deleted.'}
             with self.lock:
                 if not self.id == message['sent_from']:
                     self.clock.increment(self.id)
@@ -358,6 +371,19 @@ class Server(Bottle):
                     entry.modify_ts = modify_ts
                     self.board.add_entry(entry)
         
+        elif type == 'delete':
+            entry_id = message['entry_id']
+            delete_ts = VectorClock.from_list(entries = message['timestamp'])
+            entry = self.board.indexed_entries.get(entry_id)
+            if entry is None or entry.is_deleted():
+                return {'error': 'entry does not exist or has been deleted.'}
+            with self.lock:
+                if not self.id == message['sent_from']:
+                    self.clock.increment(self.id)                               # entry already deleted on self
+                if entry.delete_ts is None or entry.delete_ts < delete_ts:
+                    entry.delete_ts = delete_ts
+                    self.board.add_entry(entry)
+
         else:
             print("Received weird message?")
 
