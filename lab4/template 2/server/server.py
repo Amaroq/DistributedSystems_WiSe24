@@ -293,10 +293,8 @@ class Server(Bottle):
                 return
 
             entry_value = request.forms.get('value')
-
-            # TODO: Create a transaction and propagate it later in the CS
-            # use current logical timestamps for the transactions
-            self.status['clock'] += 1
+            with self.lock:
+                self.status['clock'] += 1
             clock = self.status['clock']
             entry_id = str(uuid.uuid4())
 
@@ -327,11 +325,25 @@ class Server(Bottle):
                 return
 
             entry_value = request.forms.get('value')
+            with self.lock:
+                self.status['clock'] += 1
+            clock = self.status['clock']
+            transaction_data = Transaction(entry_id, 'modify', entry_value)
+            transaction = transaction_data.to_dict()
+            timestamp = TimeStamp(clock, self.id)
+            message = {'type': 'request', 'transaction': transaction, 'timestamp': timestamp.to_list(), 'clock': clock}
+            print('prepared message for sending: ', message)
+            message['from'] = self.id
+            #msg_counter = 0
+            for srv_ip, srv_queue in self.cs_req_queues.items():
+                if srv_ip != self.ip:
+                    #message['from'] = msg_counter
+                    print(f'Adding message to queue for {srv_ip}: {message}')
+                    srv_queue.put(message)
+                #msg_counter += 1
+            self.cs_queue.put(transaction)
 
-            # TODO: Create a transaction and propagate it later in the CS
-            # use current logical timestamps for the transactions
-
-            return {}
+            return True
         except Exception as e:
             print("[ERROR] " + str(e))
             raise e
@@ -341,9 +353,26 @@ class Server(Bottle):
             if self.status["crashed"]:
                 response.status = 408
                 return
+            with self.lock:
+                self.status['clock'] += 1
+            clock = self.status['clock']
 
-            # TODO: Create a transaction and propagate it once in the CS
-            # use current logical timestamps for the transactions
+            transaction_data = Transaction(entry_id, 'delete', entry_value=None)
+            transaction = transaction_data.to_dict()
+            timestamp = TimeStamp(clock, self.id)
+            message = {'type': 'request', 'transaction': transaction, 'timestamp': timestamp.to_list(), 'clock': clock}
+            print('prepared message for sending: ', message)
+            message['from'] = self.id
+            #msg_counter = 0
+            for srv_ip, srv_queue in self.cs_req_queues.items():
+                if srv_ip != self.ip:
+                    #message['from'] = msg_counter
+                    print(f'Adding message to queue for {srv_ip}: {message}')
+                    srv_queue.put(message)
+                #msg_counter += 1
+            self.cs_queue.put(transaction)
+
+            return True
 
             return {}
         except Exception as e:
@@ -395,10 +424,9 @@ class Server(Bottle):
         # Note that you might need to use the lock
         with self.lock:
             self.status['clock'] += 1
-        print("Received message: ", message)
-        with self.lock:
+            print("Received message: ", message)
             self.status['clock'] = max(message['clock'], self.status['clock'])
-            timestamp = TimeStamp(self.status['clock'],self.id)
+        timestamp = TimeStamp(self.status['clock'],self.id)
         message_type = message['type']
         received_timestamp = TimeStamp.from_list(message['timestamp'])
         
@@ -420,15 +448,17 @@ class Server(Bottle):
                 self.denied_requests.append(message)
         
         elif message_type == 'reply':
-            self.status['reply_count'] += 1
-            reply_count = self.status['reply_count']
-            print(f'reply_count: {reply_count}')
-            self.critical_section()
+            with self.lock:
+                self.status['reply_count'] += 1
+                reply_count = self.status['reply_count']
+                print(f'reply_count: {reply_count}')
+                self.critical_section()
         elif message_type == 'transaction':
             received_transaction = Transaction(message['entry_id'],message['method'],message['entry_value'])
             if received_transaction:
                 transaction = Transaction.to_dict(received_transaction)
-                self.board.apply_transaction(transaction)
+                with self.lock:
+                    self.board.apply_transaction(transaction)
 
         # However, you might want to add this message to a queue to deal with the messages from this point onwards
 
@@ -453,8 +483,8 @@ class Server(Bottle):
                 for srv_ip, srv_queue in self.out_queues.items():
                         if srv_ip != self.ip:
                             srv_queue.put(prop_message)
-                self.status['reply_count'] = 0
                 self.cs_queue.task_done()
+            self.status['reply_count'] = 0
             for denied_reply in self.denied_requests:
                 msg_from = denied_reply['from']
                 msg_counter = 0
