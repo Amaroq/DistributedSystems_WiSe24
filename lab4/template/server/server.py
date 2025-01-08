@@ -131,7 +131,8 @@ class Server(Bottle):
             "notes": "",
             "num_entries": 0, # TODO: Use lab 2 solution to generate unique ids
             "clock": 0, # the lamport timestamp!
-            'cs_current_request': None
+            'cs_current_request': None,
+            'reply_count': 0
         }
 
         self.lock = threading.RLock()  # use reentry lock for the server
@@ -158,19 +159,25 @@ class Server(Bottle):
 
         # task 3 additional attributes/queues
         self.cs_queue = queue.Queue()
-        self.prop_queue = queue.Queue()
-        self.reply_count = 0                # to keep track of received replies
+        #self.prop_queue = queue.Queue()
+        #self.reply_count = 0              # to keep track of received replies
         self.denied_replies =[]             # keep track of denied replies
         #self.cs_current_request = None      # keep track of currently executed request
 
         self.out_queues = {}
         self.out_threads = {}
+        self.reply_queues = {}
+        self.reply_threads = {}
         for srv_ip in self.server_list:
             self.out_queues[srv_ip] = queue.Queue()
             self.out_threads[srv_ip] = threading.Thread(target=self.out_worker, daemon=True, args=(srv_ip,)).start()
+        
+        for srv_ip in self.server_list:
+            self.reply_queues[srv_ip] = queue.Queue()
+            self.reply_threads[srv_ip] = threading.Thread(target=self.reply_worker, daemon=True, args=(srv_ip,)).start()
 
         threading.Thread(target=self.cs_worker, daemon=True).start()
-        threading.Thread(target=self.prop_worker, daemon=True).start()
+        #threading.Thread(target=self.prop_worker, daemon=True).start()
 
         self.blockchain = Blockchain() # only relevant for optional task
 
@@ -290,51 +297,36 @@ class Server(Bottle):
 # ------------------------------------------------------------------------------------------------------
     def request_cs(self, transaction):
         print('entering function: request_cs')
-        with self.lock:
-            self.status['clock'] += 1
-            timestamp = self.status['clock']
-            self.status['cs_current_request'] = TimeStamp(timestamp, self.id)
-            print(f"Assigned new cs_current_request")
+        #with self.lock:
+        self.status['clock'] += 1
+        timestamp = self.status['clock']
+        self.status['cs_current_request'] = TimeStamp(timestamp, self.id)
+        print(f"Assigned new cs_current_request with ${self.status['cs_current_request'].to_list()}")
 
-            message = {'type': 'request', 'timestamp': timestamp, 'tie_breaker': self.id}
-            for srv_ip, srv_queue in self.out_queues.items():
+        message = {'type': 'request', 'timestamp': self.status['cs_current_request'].to_list(), 'clock': self.status['clock']}
+        for srv_ip, srv_queue in self.reply_queues.items():
+            if srv_ip != self.ip:
                 srv_queue.put(message)
 
-            # wait for all servers to reply before entering critical section
-            if self.wait_for_reply():
-                # enter critical section
-                self.critical_section(transaction)
-            else:
-                print(f'Error: Timeout or error received replies from other servers')
-
-            self.reply_count = 0
-            for denied_reply in self.denied_replies:
-                self.out_queues[denied_reply].put({
-                    'type': 'reply',
-                    'timestamp': self.status['clock'],
-                    'tie_breaker': self.id
-                })
-            self.denied_replies.clear()
-
-    def wait_for_reply(self):
-        print('entering wait_for_reply')
-        try:
-            while self.reply_count < len(self.server_list) -1:
-                for srv_ip, srv_queue in self.out_queues.items():
-                    if srv_ip!= self.id:
-                        try:
-                            message = srv_queue.get(timeout=1)
-                            if message['type'] == 'reply':
-                                self.reply_count += 1
-                                srv_queue.task_done()
-                        except queue.Empty:
-                            continue
-            print('exiting wait_for_reply') # debugging
-            return True
-        except Exception as e:
-            print(f'Error waiting for reply: {e}')
-            return False
-
+        # wait for all servers to reply before entering critical section
+        
+        while self.status['reply_count'] < len(self.server_list) -1:
+            # enter critical section
+            print(f'Waiting for replies')
+            print(f'current reply_count', self.status['reply_count'])
+            time.sleep(1)
+        print(f'replies receveived, entering CS')
+        self.critical_section(transaction)
+        #else:
+         #   print(f'Error: Timeout or error received replies from other servers')
+        with self.lock:
+            self.status['cs_current_request'] = None
+        for denied_reply in self.denied_replies:
+            self.reply_queues[denied_reply].put({
+                'type': 'reply',
+                'timestamp': self.status['clock']
+            })
+        self.denied_replies.clear()
 
     def create_entry_request(self):
         try:
@@ -355,7 +347,7 @@ class Server(Bottle):
             
             # create transaction
             transaction = Transaction(entry_id, method='add', entry_value=entry_value)
-            self.cs_queue.put(transaction)
+            self.cs_queue.put(transaction.to_dict())
 
             return {}
         except Exception as e:
@@ -429,52 +421,51 @@ class Server(Bottle):
             self.send_message(srv_ip, msg)
             self.out_queues[srv_ip].task_done()
     
+    def reply_worker(self, srv_ip):
+        while True:
+            msg = self.reply_queues[srv_ip].get()
+            self.send_message(srv_ip, msg)
+            self.reply_queues[srv_ip].task_done()
+
     def cs_worker(self):
         while True:
             transaction = self.cs_queue.get()
             self.request_cs(transaction)
             self.cs_queue.task_done()
-    
-    def prop_worker(self):
-        while True:
-            message = self.prop_queue.get()
-            try:
-                transaction_data = message.get('transaction')
-                if transaction_data:
-                    transaction = Transaction.from_dict(transaction_data)
-                    self.board.apply_transaction(transaction)
-            except Exception as e:
-                print(f'[ERROR] {str(e)}')
-            finally:
-                self.prop_queue.task_done()
 
     # This method is called for every message received
     def handle_message(self, message):
         # Note that you might need to use the lock
-
-        print("Received message: ", message)
-        try:
-            with self.lock:
-                # Please check the message for a newer timestamp and update your clock accordingly!
-                received_clock = message.get('clock', 0)
-                self.status['clock'] = max(self.status['clock'], received_clock) + 1
+        print("Received message: ", message, 'on', self.ip)
+        if message is None:
+            print("Error: Received None for message")
+        else:
+            # Safely access the keys
+            try:
+                with self.lock:
+                    # Please check the message for a newer timestamp and update your clock accordingly!
+                    received_clock = message.get('clock')
+                    self.status['clock'] = max(self.status['clock'], received_clock) + 1
 
                 message_type = message.get('type')
                 if message_type == 'request':
-                    request_timestamp = TimeStamp(message['timestamp'], message['tie_breaker'])
-                    if (request_timestamp['timestamp'] < self.status['clock']) or (request_timestamp['timestamp'] == self.status['clock'] and request_timestamp['tie_breaker'] < self.id):
-                        if (self.status['cs_current_request'] is None or isinstance(self.status['cs_current_request'], TimeStamp)):
-                            if (request_timestamp < self.status['cs_current_request']):
-                                self.out_queues[message['tie_breaker']].put({
-                                    'type': 'reply',
-                                    'timestamp': self.status['clock'],
-                                    'tie_breaker': self.id
-                                })
-                        else:
-                            self.denied_replies.append(message['tie_breaker'])
+                    received_timestamp = message['timestamp']
+                    request_timestamp = TimeStamp.from_list(received_timestamp)
+                    # Compare with cs_current_request
+                    if (self.status['cs_current_request'] is None or request_timestamp < self.status['cs_current_request']):
+                        # Reply immediately
+                        timestamp = request_timestamp.to_list()
+                        message = {'type': 'reply', 'clock': self.status['clock'], 'timestamp': timestamp}
+                        for srv_ip, srv_queue in self.reply_queues.items():
+                            if srv_ip != self.ip:
+                                srv_queue.put(message)
+                    else:
+                        self.denied_replies.append(message['clock'])
 
                 elif message_type == 'reply':
-                    self.reply_count += 1
+                    #print(self.cs_queue.get()['timestamp'])
+                    #if message['timestamp'] == self.cs_queue.get()['timestamp']:
+                        self.status['reply_count'] += 1
                 elif message_type =='transaction':
                     received_transaction = message.get('transaction')
                     if received_transaction:
@@ -484,26 +475,31 @@ class Server(Bottle):
                     print(f'[ERROR] Missing type in message')
                     return
 
-            # However, you might want to add this message to a queue to deal with the messages from this point onwards
+                # However, you might want to add this message to a queue to deal with the messages from this point onwards
 
-            # execute the critical section when appropriate
-        
-        except Exception as e:
-            print('[ERROR] ' + str(e))
+                # execute the critical section when appropriate
+            
+            except Exception as e:
+                print('[ERROR] ' + str(e))
 
     def critical_section(self, transaction):
         # TOOD: Implement your critical section here (Task 2)
         # Take a transaction from the queue and propagate this one to all servers (including yourself!)
+        print(f'Server ${self.id} entering critical section')
+        try:
+            #with self.lock:
+                '''self.board.apply_transaction(transaction)
+                print(f'Transaction applied: {transaction.to_dict()}')
 
-        while True:
-            try:
-                local_queue = self.out_queue[self.ip]
-                message = local_queue.get(timeout=1)    # give a little headroom in case queue is empty
+                message = {'type': 'transaction', 'transaction': transaction.to_dict()}
+                for srv_ip, srv_queue in self.out_queues.items():
+                    if srv_ip != self.ip:  # Do not propagate to self
+                        srv_queue.put(message)'''
+                transaction_data = self.cs_queue.get()    # give a little headroom in case queue is empty
 
-                transaction_data = message.get('transaction')
+                #transaction_data = message.get('transaction')
                 if not transaction_data:
-                    local_queue.task_done()
-                    continue
+                    self.cs_queue.task_done()
             
                 # convert into transaction object
                 transaction = Transaction.from_dict(transaction_data)
@@ -512,14 +508,16 @@ class Server(Bottle):
                     self.board.apply_transaction(transaction)
                     print(f'server {self.id} leaving critical section')
                 
-                prop_message = {'transaction': transaction.to_dict()}
+                prop_message = {'transaction': transaction.to_dict(), 'clock': self.status['clock']}
                 # propagate to all servers
                 for srv_ip, srv_queue in self.out_queues.items():
                     if srv_ip != self.ip:
                         srv_queue.put(prop_message)
 
-            except queue.Empty:
-                continue
+        except Exception as e:
+            print(f'[ERROR] Critical section failure: {e}')
+        finally:
+            print(f"Server {self.id} leaving critical section")
 
 
 
