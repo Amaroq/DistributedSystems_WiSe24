@@ -1,0 +1,35 @@
+services:
+  frontend:
+    build: frontend
+    ports:
+      - "127.0.0.1:8000:80"
+    environment:
+      - SERVER_LIST=127.0.0.1:8001,127.0.0.1:8002,127.0.0.1:8003,127.0.0.1:8004
+  s1:
+    build: server
+    ports:
+      - "127.0.0.1:8001:80"
+    environment:
+      - SERVER_LIST=s1:80,s2:80,s3:80,s4:80
+      - SERVER_ID=0
+  s2:
+    build: server
+    ports:
+      - "127.0.0.1:8002:80"
+    environment:
+      - SERVER_LIST=s0:80,s1:80,s2:80,s3:80
+      - SERVER_ID=1
+  s3:
+    build: server
+    ports:
+      - "127.0.0.1:8003:80"
+    environment:
+      - SERVER_LIST=s0:80,s1:80,s2:80,s3:80
+      - SERVER_ID=2
+  s4:
+    build: server
+    ports:
+      - "127.0.0.1:8004:80"
+    environment:
+      - SERVER_LIST=s0:80,s1:80,s2:80,s3:80
+      - SERVER_ID=3
